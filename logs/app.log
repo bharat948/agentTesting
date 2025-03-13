@@ -1,0 +1,12 @@
+2025-03-14 02:43:53,038 - uvicorn.error - INFO - Will watch for changes in these directories: ['C:\\Fastapi']
+2025-03-14 02:43:53,040 - uvicorn.error - INFO - Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2025-03-14 02:43:53,042 - uvicorn.error - INFO - Started reloader process [19524] using StatReload
+2025-03-14 02:44:27,149 - uvicorn.error - INFO - Stopping reloader process [19524]
+2025-03-14 02:45:06,098 - uvicorn.error - INFO - Will watch for changes in these directories: ['C:\\Fastapi']
+2025-03-14 02:45:06,098 - uvicorn.error - INFO - Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2025-03-14 02:45:06,098 - uvicorn.error - INFO - Started reloader process [10852] using StatReload
+2025-03-14 02:45:24,651 - uvicorn.error - INFO - Stopping reloader process [10852]
+2025-03-14 02:45:27,165 - uvicorn.error - INFO - Will watch for changes in these directories: ['C:\\Fastapi']
+2025-03-14 02:45:27,165 - uvicorn.error - INFO - Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2025-03-14 02:45:27,165 - uvicorn.error - INFO - Started reloader process [23256] using StatReload
+2025-03-14 02:46:44,971 - uvicorn.error - WARNING - StatReload detected changes in 'app\core\logging.py'. Reloading...
