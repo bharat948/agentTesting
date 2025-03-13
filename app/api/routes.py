@@ -1,11 +1,12 @@
 import re
+import logging
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, status
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.logging import get_user_logger, setup_logging
+from app.core.logging import get_user_logger
 from app.models.schemas import InferenceRequest, InferenceResponse
 from app.services.agent import Agent, Groq
 from app.services.memory import ConversationDB, RAGMemory
@@ -14,12 +15,17 @@ from app.services.tools import tool_registry, Tool, some_tool_function
 from app.utils.helpers import parse_agent_response
 from app.models.tool import ToolCreate, ToolUpdate
 
-global_logger = setup_logging()
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Initialize global instances
-rag_memory = RAGMemory()
-groq_client = Groq(api_key=settings.GROQ_API_KEY)
+try:
+    rag_memory = RAGMemory()
+    groq_client = Groq(api_key=settings.GROQ_API_KEY)
+except Exception as e:
+    logger.error(f"Error initializing services: {e}")
+    rag_memory = None
+    groq_client = None
 
 # Dependency: Extract username from header (default to "anonymous")
 async def get_username(request: Request) -> str:
@@ -31,7 +37,10 @@ def infer(request_data: InferenceRequest, username: str = Depends(get_username))
     user_logger.info(f"Received inference request from user: {username}")
     
     # Retrieve additional context from RAG memory (if available)
-    context = rag_memory.get_context(request_data.query)
+    context = ""
+    if rag_memory:
+        context = rag_memory.get_context(request_data.query)
+    
     history = request_data.history
     if context:
         history += "\n[Additional Context from Knowledge Base]\n" + context
@@ -81,18 +90,19 @@ def list_tools():
     }
 
 @router.post("/tools")
-def add_tool(name: str, description: str):
-    if tool_registry.get(name):
-        raise HTTPException(status_code=400, detail=f"Tool {name} already exists.")
-    new_tool = Tool(name=name, description=description)
+def add_tool(tool_data: ToolCreate):
+    if tool_registry.get(tool_data.name):
+        raise HTTPException(status_code=400, detail=f"Tool {tool_data.name} already exists.")
+    new_tool = Tool(name=tool_data.name, description=tool_data.description)
     tool_registry.register(new_tool)
     tool_registry.save_state()  # Save the state after adding a new tool
-    return {"message": f"Tool {name} added successfully."}
+    return {"message": f"Tool {tool_data.name} added successfully."}
 
 @router.delete("/tools/{name}")
 def delete_tool(name: str):
     if not tool_registry.remove(name):
         raise HTTPException(status_code=404, detail=f"Tool {name} not found.")
+    tool_registry.save_state()  # Save the state after removing a tool
     return {"message": f"Tool {name} deleted successfully."}
 
 @router.put("/tools/{name}")
@@ -101,8 +111,9 @@ def update_tool(name: str, tool_data: ToolUpdate):
     if not tool:
         raise HTTPException(status_code=404, detail=f"Tool {name} not found.")
     tool.description = tool_data.description
+    tool_registry.save_state()  # Save the state after updating a tool
     return {"message": f"Tool {name} updated successfully."}
 
-@router.get("/tools/")
+@router.get("/tools/function")
 async def read_tools():
-    return some_tool_function() 
+    return some_tool_function()

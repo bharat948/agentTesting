@@ -293,10 +293,54 @@ class ToolRegistry:
     def register(self, tool: Tool) -> Tool:
         self.tools[tool.name] = tool
         return tool
-        
+    def save_state(self):
+        """Save the current state of tools to a JSON file."""
+        logger = logging.getLogger(__name__)
+        try:
+            # Create a dictionary of tool data
+            tool_data = {
+                name: {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "type": tool.__class__.__name__
+                }
+                for name, tool in self.tools.items()
+            }
+            
+            # Save to a JSON file
+            with open("tool_registry_state.json", "w") as f:
+                json.dump(tool_data, f, indent=2)
+            
+            logger.info("Tool registry state saved successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save tool registry state: {e}")
+            return False   
     def get(self, tool_name: str) -> Optional[Tool]:
         return self.tools.get(tool_name)
-        
+        def load_state(self):
+            """Load the state of tools from a JSON file."""
+            logger = logging.getLogger(__name__)
+            try:
+                # Check if the state file exists
+                if not os.path.exists("tool_registry_state.json"):
+                    logger.info("No tool registry state file found. Using default tools.")
+                    return False
+                
+                # Load the JSON file
+                with open("tool_registry_state.json", "r") as f:
+                    tool_data = json.load(f)
+                
+                # Register any saved tools that don't exist yet
+                for name, data in tool_data.items():
+                    if name not in self.tools:
+                        self.register(Tool(name=data["name"], description=data["description"]))
+                
+                logger.info("Tool registry state loaded successfully")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to load tool registry state: {e}")
+                return False
     def list_tools(self) -> List[Tool]:
         return list(self.tools.values())
         
