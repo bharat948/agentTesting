@@ -1,10 +1,13 @@
 import os
 import re
+import json
 import httpx
-import subprocess
 import logging
+import inspect
+import subprocess
+import importlib
 import asyncio
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Callable
 
 from app.core.logging import setup_logging
 
@@ -12,11 +15,14 @@ global_logger = setup_logging()
 
 class Tool:
     """Base class for all tools."""
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str, call_func: Optional[Callable] = None):
         self.name = name
         self.description = description
+        self._call_func = call_func
 
     def __call__(self, *args, **kwargs) -> str:
+        if self._call_func:
+            return self._call_func(*args, **kwargs)
         raise NotImplementedError("Tool must implement __call__ method")
     
     async def async_call(self, *args, **kwargs) -> str:
@@ -289,58 +295,15 @@ class PythonContainerTool(Tool):
 class ToolRegistry:
     def __init__(self):
         self.tools: Dict[str, Tool] = {}
+        self.logger = logging.getLogger(__name__)
         
     def register(self, tool: Tool) -> Tool:
         self.tools[tool.name] = tool
         return tool
-    def save_state(self):
-        """Save the current state of tools to a JSON file."""
-        logger = logging.getLogger(__name__)
-        try:
-            # Create a dictionary of tool data
-            tool_data = {
-                name: {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "type": tool.__class__.__name__
-                }
-                for name, tool in self.tools.items()
-            }
-            
-            # Save to a JSON file
-            with open("tool_registry_state.json", "w") as f:
-                json.dump(tool_data, f, indent=2)
-            
-            logger.info("Tool registry state saved successfully")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to save tool registry state: {e}")
-            return False   
+        
     def get(self, tool_name: str) -> Optional[Tool]:
         return self.tools.get(tool_name)
-        def load_state(self):
-            """Load the state of tools from a JSON file."""
-            logger = logging.getLogger(__name__)
-            try:
-                # Check if the state file exists
-                if not os.path.exists("tool_registry_state.json"):
-                    logger.info("No tool registry state file found. Using default tools.")
-                    return False
-                
-                # Load the JSON file
-                with open("tool_registry_state.json", "r") as f:
-                    tool_data = json.load(f)
-                
-                # Register any saved tools that don't exist yet
-                for name, data in tool_data.items():
-                    if name not in self.tools:
-                        self.register(Tool(name=data["name"], description=data["description"]))
-                
-                logger.info("Tool registry state loaded successfully")
-                return True
-            except Exception as e:
-                logger.error(f"Failed to load tool registry state: {e}")
-                return False
+        
     def list_tools(self) -> List[Tool]:
         return list(self.tools.values())
         
@@ -349,32 +312,46 @@ class ToolRegistry:
             del self.tools[tool_name]
             return True
         return False
-
-    def save_state(self):
-        # Implement logic to save the current state of tools to a file or database
-        pass
-
-    def load_state(self):
-        # Implement logic to load the state of tools from a file or database
-        pass
-
-# Initialize the tool registry and register all tools
-tool_registry = ToolRegistry()
-tool_registry.register(CalculateTool())
-tool_registry.register(WikipediaTool())
-tool_registry.register(FileReadTool())
-tool_registry.register(FileWriteTool())
-tool_registry.register(FileAppendTool())
-tool_registry.register(FileSearchTool())
-tool_registry.register(FileListTool())
-tool_registry.register(FileDeleteTool())
-tool_registry.register(DirectoryCreateTool())
-tool_registry.register(DirectoryDeleteTool())
-tool_registry.register(CommandExecutionTool())
-tool_registry.register(PythonContainerTool())
-
-def some_tool_function():
-    # existing code...
-    return "Tool function result"
-
-# existing code...
+        
+    def create_tool_from_code(self, name: str, description: str, code: str) -> Tool:
+        """Create a tool from provided code for the __call__ method"""
+        self.logger.info(f"Creating tool from code: {name}")
+        try:
+            # Define a safe subset of allowed globals
+            safe_globals = {
+                'logging': logging,
+                'global_logger': global_logger,
+                're': re,
+                'os': os,
+                'str': str,
+                'int': int,
+                'float': float,
+                'list': list,
+                'dict': dict,
+                'set': set,
+                'tuple': tuple,
+                'Exception': Exception,
+            }
+            
+            # Create a context for the function
+            tool_context = {}
+            
+            # Define the function template
+            func_template = f"""
+    def _call_func(*args, **kwargs):
+        # Tool code:
+        try:
+    {code}
+        except Exception as e:
+            global_logger.error(f"Custom tool error: {{e}}")
+            return f"Error in custom tool: {{str(e)}}"
+    """
+            # Compile and execute the function template in a controlled namespace
+            exec(func_template, safe_globals, tool_context)
+            
+            # Extract the generated function and create a new tool
+            custom_tool = Tool(name=name, description=description, call_func=tool_context['_call_func'])
+            return custom_tool
+        except Exception as e:
+            self.logger.error(f"Error creating tool from code: {e}")
+            raise
