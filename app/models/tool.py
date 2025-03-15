@@ -4,8 +4,9 @@ from pydantic import BaseModel, Field
 class ToolCreate(BaseModel):
     name: str
     description: str
-    code: str = Field(..., description="Python code for the __call__ method")
-
+    code: Optional[str] = None
+    init_code: Optional[str] = ""
+    call_code: Optional[str] = ""
 class ToolUpdate(BaseModel):
     description: Optional[str] = None
     code: Optional[str] = None

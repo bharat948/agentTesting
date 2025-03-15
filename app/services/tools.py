@@ -2,16 +2,11 @@ import os
 import re
 import json
 import httpx
-import logging
 import inspect
 import subprocess
 import importlib
 import asyncio
 from typing import Dict, List, Optional, Any, Callable
-
-from app.core.logging import setup_logging
-
-global_logger = setup_logging()
 
 class Tool:
     """Base class for all tools."""
@@ -37,12 +32,10 @@ class CalculateTool(Tool):
             description="Evaluates mathematical expressions. Example: calculate: 4 * 7 / 3"
         )
     def __call__(self, operation: str) -> str:
-        global_logger.info(f"Calculating: {operation}")
         try:
             result = eval(operation)
             return str(result)
         except Exception as e:
-            global_logger.error(f"Calculation error: {e}")
             return f"Error in calculation: {str(e)}"
 
 class WikipediaTool(Tool):
@@ -53,7 +46,6 @@ class WikipediaTool(Tool):
             description="Searches Wikipedia for information. Example: wikipedia: Django"
         )
     def __call__(self, query: str) -> str:
-        global_logger.info(f"Searching Wikipedia for: {query}")
         try:
             response = httpx.get("https://en.wikipedia.org/w/api.php", params={
                 "action": "query",
@@ -67,11 +59,9 @@ class WikipediaTool(Tool):
                 return data["query"]["search"][0]["snippet"]
             return "No results found on Wikipedia."
         except Exception as e:
-            global_logger.error(f"Wikipedia search error: {e}")
             return f"Error searching Wikipedia: {str(e)}"
     
     async def async_call(self, query: str) -> str:
-        global_logger.info(f"Async searching Wikipedia for: {query}")
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get("https://en.wikipedia.org/w/api.php", params={
@@ -86,7 +76,6 @@ class WikipediaTool(Tool):
                     return data["query"]["search"][0]["snippet"]
                 return "No results found on Wikipedia."
         except Exception as e:
-            global_logger.error(f"Async Wikipedia search error: {e}")
             return f"Error searching Wikipedia: {str(e)}"
 
 # File Management Tools
@@ -98,12 +87,10 @@ class FileReadTool(Tool):
             description="Reads content from a file. Example: read_file: path/to/file.txt"
         )
     def __call__(self, file_path: str) -> str:
-        global_logger.info(f"Reading file: {file_path}")
         try:
             with open(file_path, 'r') as file:
                 return file.read()
         except Exception as e:
-            global_logger.error(f"File reading error: {e}")
             return f"Error reading file: {str(e)}"
 
 class FileWriteTool(Tool):
@@ -125,7 +112,6 @@ class FileWriteTool(Tool):
             return match.group(1).strip()
         return content
     def __call__(self, args: str) -> str:
-        global_logger.info(f"Writing to file with args: {args}")
         try:
             if "||" in args:
                 file_path, content = args.split("||", 1)
@@ -134,11 +120,9 @@ class FileWriteTool(Tool):
             content = self.strip_code_fence(content)
             os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
             with open(file_path, 'w') as file:
-                global_logger.info(f"Writing content to {file_path}")
                 file.write(content)
             return f"Successfully wrote to {file_path}"
         except Exception as e:
-            global_logger.error(f"File writing error: {e}")
             return f"Error writing to file: {str(e)}"
 
 class FileAppendTool(Tool):
@@ -149,7 +133,6 @@ class FileAppendTool(Tool):
             description="Appends content to a file. Format: 'file_path||content'. Example: append_file: example.txt||Hello world"
         )
     def __call__(self, args: str) -> str:
-        global_logger.info(f"Appending to file with args: {args}")
         try:
             if "||" in args:
                 file_path, content = args.split("||", 1)
@@ -157,11 +140,9 @@ class FileAppendTool(Tool):
                 return "Error: Invalid format. Use 'file_path||content'"
             content = FileWriteTool().strip_code_fence(content)
             with open(file_path, 'a') as file:
-                global_logger.info(f"Appending content to {file_path}")
                 file.write(content)
             return f"Successfully appended to {file_path}"
         except Exception as e:
-            global_logger.error(f"File appending error: {e}")
             return f"Error appending to file: {str(e)}"
 
 class FileSearchTool(Tool):
@@ -172,7 +153,6 @@ class FileSearchTool(Tool):
             description="Searches for a string in a file. Format: 'file_path||search_string'. Example: search_file: example.txt||Hello"
         )
     def __call__(self, args: str) -> str:
-        global_logger.info(f"Searching in file with args: {args}")
         try:
             if "||" in args:
                 file_path, search_string = args.split("||", 1)
@@ -183,7 +163,6 @@ class FileSearchTool(Tool):
             matches = re.findall(re.escape(search_string), content)
             return f"Found {len(matches)} occurrences of '{search_string}'"
         except Exception as e:
-            global_logger.error(f"File search error: {e}")
             return f"Error searching file: {str(e)}"
 
 class FileListTool(Tool):
@@ -194,12 +173,10 @@ class FileListTool(Tool):
             description="Lists files in a directory. Example: list_files: path/to/directory"
         )
     def __call__(self, directory_path: str) -> str:
-        global_logger.info(f"Listing files in directory: {directory_path}")
         try:
             files = os.listdir(directory_path)
             return "\n".join(files)
         except Exception as e:
-            global_logger.error(f"Error listing files: {e}")
             return f"Error listing files: {str(e)}"
 
 class FileDeleteTool(Tool):
@@ -210,12 +187,10 @@ class FileDeleteTool(Tool):
             description="Deletes a file. Example: delete_file: path/to/file.txt"
         )
     def __call__(self, file_path: str) -> str:
-        global_logger.info(f"Deleting file: {file_path}")
         try:
             os.remove(file_path)
             return f"Successfully deleted {file_path}"
         except Exception as e:
-            global_logger.error(f"File deletion error: {e}")
             return f"Error deleting file: {str(e)}"
 
 class DirectoryCreateTool(Tool):
@@ -226,12 +201,10 @@ class DirectoryCreateTool(Tool):
             description="Creates a directory. Example: create_directory: path/to/directory"
         )
     def __call__(self, directory_path: str) -> str:
-        global_logger.info(f"Creating directory: {directory_path}")
         try:
             os.makedirs(directory_path, exist_ok=True)
             return f"Successfully created directory {directory_path}"
         except Exception as e:
-            global_logger.error(f"Directory creation error: {e}")
             return f"Error creating directory: {str(e)}"
 
 class DirectoryDeleteTool(Tool):
@@ -242,12 +215,10 @@ class DirectoryDeleteTool(Tool):
             description="Deletes a directory. Example: delete_directory: path/to/directory"
         )
     def __call__(self, directory_path: str) -> str:
-        global_logger.info(f"Deleting directory: {directory_path}")
         try:
             os.rmdir(directory_path)
             return f"Successfully deleted directory {directory_path}"
         except Exception as e:
-            global_logger.error(f"Directory deletion error: {e}")
             return f"Error deleting directory: {str(e)}"
 
 # Command Execution Tool
@@ -259,7 +230,6 @@ class CommandExecutionTool(Tool):
             description="Executes a shell command. Example: execute_command: ls -la"
         )
     def __call__(self, command: str) -> str:
-        global_logger.info(f"Executing command: {command}")
         try:
             result = subprocess.run(command, shell=True, capture_output=True, text=True)
             if result.returncode == 0:
@@ -267,7 +237,6 @@ class CommandExecutionTool(Tool):
             else:
                 return f"Command error: {result.stderr}"
         except Exception as e:
-            global_logger.error(f"Command execution error: {e}")
             return f"Error executing command: {str(e)}"
 
 # Container Management Tool
@@ -279,7 +248,6 @@ class PythonContainerTool(Tool):
             description="Runs Python code in a container. Example: run_python_container: path/to/script.py"
         )
     def __call__(self, script_path: str) -> str:
-        global_logger.info(f"Running Python script in container: {script_path}")
         try:
             # This is a placeholder for actual container execution logic
             # You might use Docker or another container system here
@@ -289,16 +257,15 @@ class PythonContainerTool(Tool):
             else:
                 return f"Container execution error: {result.stderr}"
         except Exception as e:
-            global_logger.error(f"Container execution error: {e}")
             return f"Error running container: {str(e)}"
 
 class ToolRegistry:
     def __init__(self):
         self.tools: Dict[str, Tool] = {}
-        self.logger = logging.getLogger(__name__)
         
     def register(self, tool: Tool) -> Tool:
         self.tools[tool.name] = tool
+        print("all the tools", self.tools)
         return tool
         
     def get(self, tool_name: str) -> Optional[Tool]:
@@ -313,14 +280,11 @@ class ToolRegistry:
             return True
         return False
         
-    def create_tool_from_code(self, name: str, description: str, code: str) -> Tool:
-        """Create a tool from provided code for the __call__ method"""
-        self.logger.info(f"Creating tool from code: {name}")
+    def create_tool_from_code(self, name: str, description: str, call_code: str, init_code: str = "") -> Tool:
+        """Create a tool from provided code for both __init__ and __call__ methods"""
         try:
             # Define a safe subset of allowed globals
             safe_globals = {
-                'logging': logging,
-                'global_logger': global_logger,
                 're': re,
                 'os': os,
                 'str': str,
@@ -331,27 +295,147 @@ class ToolRegistry:
                 'set': set,
                 'tuple': tuple,
                 'Exception': Exception,
+                'Tool': Tool,  # Allow access to base Tool class
             }
             
-            # Create a context for the function
+            # Create a context for the class
             tool_context = {}
             
-            # Define the function template
-            func_template = f"""
-    def _call_func(*args, **kwargs):
-        # Tool code:
-        try:
-    {code}
-        except Exception as e:
-            global_logger.error(f"Custom tool error: {{e}}")
-            return f"Error in custom tool: {{str(e)}}"
-    """
-            # Compile and execute the function template in a controlled namespace
-            exec(func_template, safe_globals, tool_context)
+            # Properly indent the code blocks
+            if init_code:
+                # Add additional indentation for init_code
+                indented_init_code = "            " + init_code.replace("\n", "\n            ")
+            else:
+                indented_init_code = "            pass"
+                
+            if call_code:
+                # Add additional indentation for call_code
+                indented_call_code = "            " + call_code.replace("\n", "\n            ")
+            else:
+                indented_call_code = "            pass"
             
-            # Extract the generated function and create a new tool
-            custom_tool = Tool(name=name, description=description, call_func=tool_context['_call_func'])
+            # Remove leading indentation from the template
+            class_template = """class DynamicTool(Tool):
+        def __init__(self, *args, **kwargs):
+            super().__init__(name="{name}", description="{description}")
+            try:
+    {init_code}
+            except Exception as e:
+                raise RuntimeError(f"Error in tool initialization: {{str(e)}}")
+        
+        def __call__(self, *args, **kwargs):
+            try:
+    {call_code}
+            except Exception as e:
+                return f"Error in tool execution: {{str(e)}}"
+    """.format(name=name, description=description, init_code=indented_init_code, call_code=indented_call_code)
+
+            # Compile and execute the class template in a controlled namespace
+            exec(class_template, safe_globals, tool_context)
+            
+            # Create an instance of the dynamic tool
+            custom_tool = tool_context['DynamicTool']()
             return custom_tool
         except Exception as e:
-            self.logger.error(f"Error creating tool from code: {e}")
-            raise
+            raise RuntimeError(f"Error creating tool: {str(e)}")
+    def load_state(self):
+        """Load the tool registry state from a JSON file, if it exists."""
+        try:
+            if os.path.exists("tool_registry.json"):
+                with open("tool_registry.json", "r") as f:
+                    tools_state = json.load(f)
+                
+                for name, info in tools_state.items():
+                    # Re-register a simple tool with no custom call function
+                    self.tools[name] = Tool(name=name, 
+                                           description=info.get("description", ""), 
+                                           call_func=None)
+        except Exception as e:
+            pass
+    def save_state(self):
+        """Persist the current tool registry state to a JSON file.
+        
+        This method saves all registered tools' metadata including name, description,
+        and code information when available. For dynamic tools created with code,
+        it attempts to save the original code used to create them.
+        """
+        try:
+            tools_state = {}
+            
+            for name, tool in self.tools.items():
+                tool_info = {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "type": tool.__class__.__name__
+                }
+                
+                # Try to extract source code for dynamic tools if available
+                if hasattr(tool, '_init_code') and tool._init_code:
+                    tool_info['init_code'] = tool._init_code
+                    
+                if hasattr(tool, '_call_code') and tool._call_code:
+                    tool_info['call_code'] = tool._call_code
+                
+                tools_state[name] = tool_info
+            
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(os.path.abspath("tool_registry.json")), exist_ok=True)
+            
+            # Write to file with pretty formatting
+            with open("tool_registry.json", "w") as f:
+                json.dump(tools_state, f, indent=2)
+                
+            print(f"Successfully saved {len(tools_state)} tools to registry")
+            return True
+        except Exception as e:
+            print(f"Error saving tool registry state: {str(e)}")
+            return False
+    
+# Initialize a global tool registry instance
+
+tool_registry = ToolRegistry()
+def register_built_in_tools(registry):
+        """Register all built-in tools with the tool registry.
+        
+        This function creates instances of all available tool classes
+        defined in the tools.py file and registers them with the provided registry.
+        
+        Args:
+            registry: The ToolRegistry instance to register tools with
+        
+        Returns:
+            List of names of all registered tools
+        """
+        # List of all available tool classes
+        tool_classes = [
+            CalculateTool,
+            WikipediaTool,
+            FileReadTool,
+            FileWriteTool,
+            FileAppendTool,
+            FileSearchTool,
+            FileListTool,
+            FileDeleteTool,
+            DirectoryCreateTool,
+            DirectoryDeleteTool,
+            CommandExecutionTool,
+            PythonContainerTool
+        ]
+        
+        registered_tools = []
+        
+        # Create and register an instance of each tool class
+        for tool_class in tool_classes:
+            try:
+                tool = tool_class()
+                registry.register(tool)
+                registered_tools.append(tool.name)
+                print(f"Registered tool: {tool.name}")
+            except Exception as e:
+                print(f"Failed to register {tool_class.__name__}: {str(e)}")
+        
+        return registered_tools
+register_built_in_tools(registry=tool_registry)
+def some_tool_function() -> str:
+    # Dummy implementation for the /tools/function endpoint
+    return "Tool function result"

@@ -5,32 +5,13 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from app.core.config import settings
-from app.core.logging import get_user_logger
+
 from app.services.tools import Tool
 from app.services.memory import ConversationDB
-
-# Dummy Groq Client (replace with production client as needed)
-try:
-    from groq import Groq
-except ImportError:
-    class Groq:
-        def __init__(self, api_key):
-            self.api_key = api_key
-            self.chat = self
-        def completions(self, **kwargs):
-            class Choice:
-                def __init__(self):
-                    self.message = type("Msg", (), {"content": "Thought: I have reasoned through the query.\nAnswer: This is a dummy response from Groq."})
-            class Completion:
-                def __init__(self):
-                    self.choices = [Choice()]
-            return Completion()
-        def create(self, **kwargs):
-            return self.completions(**kwargs)
-
+from groq import Groq
 class Agent:
     def __init__(self, 
-                 client: Any, 
+                 client: Any=None, 
                  model: str = settings.DEFAULT_MODEL, 
                  system: str = "",
                  tools: Optional[List[Tool]] = None,
@@ -45,14 +26,11 @@ class Agent:
         self.conversation_id = str(uuid.uuid4())
         self.tools = tools or []
         self.tool_map = {tool.name: tool for tool in self.tools}
-        self.logger = get_user_logger(username)
-        self.logger.info(f"Initializing agent with ID: {self.conversation_id} for user: {username}")
         if self.system:
             self.messages.append({"role": "system", "content": system})
             
     def __call__(self, message: str = "") -> str:
         if message:
-            self.logger.info(f"User ({self.username}) message: {message[:50]}{'...' if len(message) > 50 else ''}")
             self.messages.append({"role": "user", "content": message})
         result = self.execute()
         self.messages.append({"role": "assistant", "content": result})
@@ -61,16 +39,29 @@ class Agent:
         return result
         
     def execute(self) -> str:
-        self.logger.info(f"Executing LLM call with {len(self.messages)} messages for user: {self.username}")
         try:
-            completion = self.client.chat.completions.create(
+            print("System messages:", self.messages)
+            
+            # Import necessary modules
+            import groq 
+            import asyncio
+
+            # Initialize the Groq client with your API key
+            client = groq.Groq(api_key=settings.GROQ_API_KEY)
+            print("Initialized Groq client:", client)
+
+            # Run the asynchronous API call inside an event loop
+            completion = client.chat.completions.create(
                 model=self.model, 
                 messages=self.messages,
                 temperature=self.temperature
             )
+            print("Completion response:", completion)
+            
+            # Extract the result
             result = completion.choices[0].message.content
-            self.logger.info(f"LLM response: {result[:50]}{'...' if len(result) > 50 else ''}")
+            print("LLM response:", result)
             return result
+
         except Exception as e:
-            self.logger.error(f"LLM execution error: {e}")
-            return f"Error: Failed to get response from LLM: {str(e)}" 
+            return f"Error: Failed to get response from LLM: {str(e)}"

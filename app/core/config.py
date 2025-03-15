@@ -1,4 +1,3 @@
-import os
 from typing import List
 from pydantic_settings import BaseSettings
 
@@ -9,28 +8,28 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0"
     
     # Environment settings
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    ENVIRONMENT: str = "development"
+    DEBUG: bool = False
     
     # API keys
-    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "dummy_api_key")
+    GROQ_API_KEY: str = "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"
     
     # Database settings
-    MONGODB_URI: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+    MONGODB_URI: str = "mongodb+srv://bharat:Bharat948@cluster-1.xtbst.mongodb.net/"
     
     # Logging settings
-    LOGS_DIR: str = os.getenv("LOGS_DIR", "logs")
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOGS_DIR: str = "logs"
+    LOG_LEVEL: str = "INFO"
     
     # CORS settings
     CORS_ORIGINS: List[str] = ["*"]
     
     # LLM settings
-    DEFAULT_MODEL: str = "gemma2-9b-it"
+    DEFAULT_MODEL: str = "llama-3.3-70b-versatile"
     DEFAULT_TEMPERATURE: float = 0.7
     
     class Config:
         env_file = ".env"
         case_sensitive = True
 
-settings = Settings() 
+settings = Settings()

@@ -1,0 +1,38 @@
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+
+# Ignore virtual environment
+venv/
+
+# Ignore site-packages inside virtual environment
+venv/Lib/site-packages/
+
+# Ignore pip cache and compiled files
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Ignore IDE and editor settings
+.vscode/
+.idea/
+*.swp
+
+# Ignore environment variables and secrets
+.env
+*.env
+
+# Ignore build and cache directories
+build/
+dist/
+*.egg-info/
+
+# Ignore FastAPI specific files
+*.db
+*.sqlite3
+instance/
+
+# Ignore system files
+.DS_Store
+Thumbs.db

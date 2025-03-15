@@ -4,3 +4,4 @@ httpx
 pymongo
 pydantic
 pydantic-settings
+groq
